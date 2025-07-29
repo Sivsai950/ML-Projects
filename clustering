@@ -1,0 +1,23 @@
+#import necessary libraries
+from sklearn.cluster import KMeans
+from sklearn.datasets import make_blobs
+import matplotlib.pyplot as plt
+
+#creat some fake (synthetic) data
+data,_=make_blobs(n_samples=200, centers=3, random_state=0)
+
+#apply kmeans to group the data into 3 clusters
+kmeans=KMeans(n_clusters=3)
+kmeans.fit(data)
+
+#show the results
+# plot the points and color then based on which cluster they belong to
+plt.scatter(data[:,0], data[:,1],c=kmeans.labels_)
+
+#plot the red xs as the center points of the clusters
+plt.scatter(kmeans.cluster_centers_[:,0], kmeans.cluster_centers_[:,1], c='red',s=200,marker='x')
+
+plt.title("simple k-means clustering")
+plt.xlabel("x Axis")
+plt.ylabel("y Axis")
+plt.show()
