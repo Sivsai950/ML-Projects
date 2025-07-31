@@ -1,0 +1,77 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.impute import SimpleImputer
+from sklearn.metrics import mean_squared_error
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import LabelEncoder
+
+# 1. Load the training and test data
+train = pd.read_csv("C:\\Data science\\data home\\home-data-for-ml-course\\train.csv")
+test = pd.read_csv("C:\\Data science\\data home\\home-data-for-ml-course\\test.csv")
+
+# Keep the test IDs so we can use them later in the submission
+test_ids = test["Id"]
+
+# 2. Save and log-transform the target variable (SalePrice)
+# This helps because Kaggle uses RMSLE as the scoring metric
+y = np.log1p(train["SalePrice"])
+
+# 3. Drop the target and ID from the training set
+X = train.drop(["SalePrice", "Id"], axis=1)
+X_test = test.drop("Id", axis=1)
+
+# 4. Combine train and test data for easier processing
+all_data = pd.concat([X, X_test], axis=0)
+
+# 5. Feature Engineering - create some useful new columns
+all_data["TotalSF"] = all_data["TotalBsmtSF"] + all_data["1stFlrSF"] + all_data["2ndFlrSF"]
+all_data["TotalBathrooms"] = (
+    all_data["FullBath"] + all_data["HalfBath"] * 0.5 +
+    all_data["BsmtFullBath"] + all_data["BsmtHalfBath"] * 0.5
+)
+all_data["HouseAge"] = all_data["YrSold"] - all_data["YearBuilt"]
+all_data["Remodeled"] = (all_data["YearRemodAdd"] != all_data["YearBuilt"]).astype(int)
+
+# 6. Handle missing values
+for column in all_data.columns:
+    if all_data[column].dtype == "object":
+        # Fill missing text fields with 'None'
+        all_data[column] = all_data[column].fillna("None")
+    else:
+        # Fill missing numbers with the column's median value
+        all_data[column] = all_data[column].fillna(all_data[column].median())
+
+# 7. Convert text/categorical columns into numbers using one-hot encoding
+all_data = pd.get_dummies(all_data)
+
+# 8. Split the data back into training and test sets
+X = all_data.iloc[:len(train), :]
+X_test = all_data.iloc[len(train):, :]
+
+# 9. Train a Gradient Boosting model
+model = GradientBoostingRegressor(
+    n_estimators=300,
+    learning_rate=0.05,
+    max_depth=4,
+    random_state=42
+)
+
+# Fit the model using the training data
+model.fit(X, y)
+
+# 10. Make predictions on the test set
+# We reverse the log1p transformation using expm1
+predictions_log = model.predict(X_test)
+final_predictions = np.expm1(predictions_log)
+
+# 11. Create a submission file in the required format
+submission = pd.DataFrame({
+    "Id": test_ids,
+    "SalePrice": final_predictions
+})
+
+# Save it to a CSV file
+
+submission.to_csv("submission.csv1", index=False)
